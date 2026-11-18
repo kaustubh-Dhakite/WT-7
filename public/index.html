@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Management System - MongoDB NoSQL Practical</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Navigation & Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="header-branding">
+        <div class="header-icon">🎓</div>
+        <div>
+          <h1>Student Management System</h1>
+          <p class="header-subtitle">Web Technology Practical: Node.js + Express + MongoDB Atlas NoSQL</p>
+        </div>
+      </div>
+      <div class="header-status">
+        <span id="dbStatusBadge" class="status-badge status-checking">
+          <span class="status-dot"></span> <span id="dbStatusText">Checking Database...</span>
+        </span>
+        <button id="apiConfigBtn" class="btn btn-secondary btn-sm" title="Configure Backend URL">⚙️ API Config</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notification Banner -->
+  <div class="notification-container">
+    <div id="alertBanner" class="alert-banner hidden" role="alert">
+      <span id="alertIcon" class="alert-icon">ℹ️</span>
+      <span id="alertMessage" class="alert-message">Notification text</span>
+      <button id="alertCloseBtn" class="alert-close" aria-label="Close alert">&times;</button>
+    </div>
+  </div>
+
+  <main class="main-container">
+    <!-- Stats Row -->
+    <section class="stats-row">
+      <div class="stat-card">
+        <div class="stat-icon bg-blue">👥</div>
+        <div>
+          <div class="stat-value" id="totalStudentsCount">0</div>
+          <div class="stat-label">Total Registered Students</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-green">🏛️</div>
+        <div>
+          <div class="stat-value" id="totalDepartmentsCount">0</div>
+          <div class="stat-label">Departments Active</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-purple">🍃</div>
+        <div>
+          <div class="stat-value" id="databaseInfo">studentDB</div>
+          <div class="stat-label">MongoDB Atlas Database</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Content Grid -->
+    <div class="content-grid">
+      <!-- Left Column: Student Form Card -->
+      <section class="card form-card">
+        <div class="card-header">
+          <h2 id="formTitle">➕ Add New Student</h2>
+          <span class="badge badge-info" id="formModeBadge">Create Mode</span>
+        </div>
+        <div class="card-body">
+          <form id="studentForm" novalidate>
+            <!-- Hidden field for editing existing student ID -->
+            <input type="hidden" id="studentId" value="">
+
+            <div class="form-group">
+              <label for="name">Full Name <span class="required">*</span></label>
+              <input 
+                type="text" 
+                id="name" 
+                name="name" 
+                placeholder="e.g. Alex Johnson" 
+                required 
+                autocomplete="off"
+              >
+              <small class="form-error" id="nameError"></small>
+            </div>
+
+            <div class="form-group">
+              <label for="rollNo">Roll Number <span class="required">*</span></label>
+              <input 
+                type="text" 
+                id="rollNo" 
+                name="rollNo" 
+                placeholder="e.g. 2026CS101" 
+                required 
+                autocomplete="off"
+              >
+              <small class="form-error" id="rollNoError"></small>
+            </div>
+
+            <div class="form-group">
+              <label for="email">College Email Address <span class="required">*</span></label>
+              <input 
+                type="email" 
+                id="email" 
+                name="email" 
+                placeholder="e.g. alex.j@college.edu" 
+                required 
+                autocomplete="off"
+              >
+              <small class="form-error" id="emailError"></small>
+            </div>
+
+            <div class="form-group">
+              <label for="department">Department <span class="required">*</span></label>
+              <select id="department" name="department" required>
+                <option value="">-- Select Department --</option>
+                <option value="Computer Science & Engineering">Computer Science & Engineering</option>
+                <option value="Information Technology">Information Technology</option>
+                <option value="Electronics & Communication">Electronics & Communication</option>
+                <option value="Mechanical Engineering">Mechanical Engineering</option>
+                <option value="Civil Engineering">Civil Engineering</option>
+                <option value="Electrical & Electronics">Electrical & Electronics</option>
+              </select>
+              <small class="form-error" id="departmentError"></small>
+            </div>
+
+            <div class="form-group">
+              <label for="year">Academic Year <span class="required">*</span></label>
+              <select id="year" name="year" required>
+                <option value="">-- Select Year --</option>
+                <option value="1st Year">1st Year (Freshman)</option>
+                <option value="2nd Year">2nd Year (Sophomore)</option>
+                <option value="3rd Year">3rd Year (Junior)</option>
+                <option value="4th Year">4th Year (Senior)</option>
+              </select>
+              <small class="form-error" id="yearError"></small>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" id="submitBtn" class="btn btn-primary">
+                <span id="submitBtnText">💾 Save Student</span>
+              </button>
+              <button type="button" id="cancelBtn" class="btn btn-secondary hidden">
+                ✕ Cancel Edit
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- Right Column: Student Records Table -->
+      <section class="card table-card">
+        <div class="card-header table-header">
+          <div>
+            <h2>📋 Registered Students</h2>
+            <p class="card-subtitle">Real-time records queried from MongoDB Atlas <code>students</code> collection</p>
+          </div>
+          <button id="refreshBtn" class="btn btn-outline btn-sm" title="Refresh records from MongoDB">
+            🔄 Refresh
+          </button>
+        </div>
+
+        <div class="card-body">
+          <!-- Search & Filter Bar -->
+          <div class="search-bar">
+            <div class="search-input-wrapper">
+              <span class="search-icon">🔍</span>
+              <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="Search by Name, Roll No, or Department..." 
+                autocomplete="off"
+              >
+              <button id="clearSearchBtn" class="clear-search-btn hidden" title="Clear search">&times;</button>
+            </div>
+          </div>
+
+          <!-- Loading Spinner -->
+          <div id="loadingSpinner" class="loading-state hidden">
+            <div class="spinner"></div>
+            <p>Fetching records from MongoDB...</p>
+          </div>
+
+          <!-- Database Disconnected Warning Message -->
+          <div id="dbWarningBox" class="db-warning-state hidden">
+            <div class="warning-icon">⚠️</div>
+            <h3>MongoDB Atlas Not Connected</h3>
+            <p>The backend cannot connect to MongoDB. Please ensure your <code>MONGO_URI</code> is configured in <code>.env</code> and your IP is whitelisted on MongoDB Atlas.</p>
+          </div>
+
+          <!-- Empty State -->
+          <div id="emptyState" class="empty-state hidden">
+            <div class="empty-icon">📂</div>
+            <h3>No Student Records Found</h3>
+            <p id="emptyStateMsg">There are currently no students in the database. Add your first student record using the form!</p>
+          </div>
+
+          <!-- Student Table Container -->
+          <div class="table-responsive">
+            <table id="studentsTable" class="students-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Roll No</th>
+                  <th>Student Name</th>
+                  <th>Email Address</th>
+                  <th>Department</th>
+                  <th>Year</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="studentsTableBody">
+                <!-- Records injected dynamically via script.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>🗑️ Confirm Delete</h3>
+        <button id="closeModalBtn" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to permanently delete this student record from MongoDB?</p>
+        <div class="student-delete-preview" id="deletePreviewInfo">
+          <!-- Populated dynamically -->
+        </div>
+        <p class="modal-warning">⚠️ This operation directly deletes the document from MongoDB Atlas.</p>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelDeleteBtn" class="btn btn-secondary">Cancel</button>
+        <button id="confirmDeleteBtn" class="btn btn-danger">Confirm Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API URL Configuration Modal (Useful for Vercel <-> Render deployment) -->
+  <div id="apiModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>⚙️ Backend API Configuration</h3>
+        <button id="closeApiModalBtn" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Configure the backend server URL. If you are testing locally or running on the same server, leave this empty.</p>
+        <div class="form-group">
+          <label for="apiUrlInput">Backend Base URL</label>
+          <input 
+            type="url" 
+            id="apiUrlInput" 
+            placeholder="e.g. https://student-management-backend.onrender.com"
+          >
+          <small class="form-hint">Default for local development is <code>http://localhost:5000</code> or relative URL.</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="resetApiUrlBtn" class="btn btn-secondary">Reset to Default</button>
+        <button id="saveApiUrlBtn" class="btn btn-primary">Save URL</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <p>🎓 <strong>Web Technology Assignment</strong> • Node.js, Express, Mongoose &amp; MongoDB Atlas NoSQL Operations</p>
+    <p class="footer-meta">Database: <code>studentDB</code> | Collection: <code>students</code> | CRUD API: <code>/api/students</code></p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
+
